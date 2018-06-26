@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>Pet Connect Lines</title>
+  <meta name="description" content="Pet connect lines">
+  <meta name="author" content="Lingyi Hu">
+  <style>
+    html, body {
+      font-family: Arial;
+    }
+    #main {
+      width: 640px; /*16 * 40*/
+
+      margin: 0 auto;
+      /*border: solid 1px;*/
+    }
+    .tile {
+      vertical-align: top;
+      height: 40px;
+      width: 40px;
+    }
+    .tile:hover:not(.transparent) {
+      cursor: pointer;
+    }
+    .tile:hover:not(.transparent):not(.selected) {
+      background-color: blanchedalmond;
+    }
+    .tile.selected {
+      background-color: red;
+    }
+    .path-highlight {
+      background-color: lightgray;
+    }
+    .centered {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      /* bring your own prefixes */
+      transform: translate(-50%, -50%);
+    }
+    .message {
+      text-align: center;
+      display: none;
+    }
+    #progress-bar {
+      width: 100%;
+      height: 20px;
+      background-color: red;
+    }
+    .hint {
+      background-color: black;
+    }
+  </style>
+</head>
+
+<body>
+  
+  <div id="progress-bar"></div>
+  <div id="main"></div>
+  
+  <div class="centered message" id="ultimate-success-message">
+    <h1>Congratulations! You have completed the game!</h1>
+    <button onclick="location.reload()">Restart</button>
+  </div>
+  <div class="centered message" id="success-message">
+    <h1>Success!</h1>
+    <button onclick="next_level()">Next Level</button>
+  </div>
+  <div class="centered message" id="failure-message">
+    <h1>Uh oh, you ran out of time!</h1>
+    <button>Try again</button>
+  </div>
+  <div style="text-align: center;">
+    <h2 id="level-indicator"></h2>
+  </div>
+  <div style="text-align: center;"><button onclick="show_hint()">Show Hint</button><button onclick="reshuffle_game()">Reshuffle</button><button onclick="pause_game()">Pause</button><button onclick="unpause_game()">Resume</button></div>
+
+  <script src="main.js"></script>
+  <script>
+    const folder = "animals/";
+    const timer_upper_limit = 3*60 + 20;
+    const success_added_time = 4; // seconds
+
+    let tmp = generate_game(DIM);
+    let game = tmp[0];
+    let vmove = tmp[1];
+    let level = 1;
+    let allowed_time = timer_upper_limit; // seconds
+    let timer = setInterval(update_timer, 1000);
+    let game_active = true;
+    let current_lvl = 1;
+    update_level();
+    render_game(game);
+
+    function update_timer() {
+      allowed_time -= 1;
+      update_progress_bar()
+      if (allowed_time === 0) {
+        document.getElementById("failure-message").style.display = "block";
+        document.getElementById("main").style.opacity = 0.2;
+        game_active = false;
+        clearInterval(timer); return;
+      }
+    }
+
+    function next_level() {
+      document.getElementById("success-message").style.display = "none";
+      document.getElementById("failure-message").style.display = "none";
+      current_lvl += 1;
+      update_level();
+      // reset
+      clearInterval(timer);
+      allowed_time = timer_upper_limit;
+      timer = setInterval(update_timer, 1000);
+      tmp = generate_game(DIM);
+      game = tmp[0];
+      vmove = tmp[1];
+      game_active = true;
+      render_game(game);
+    }
+
+    function update_level() {
+      document.getElementById("level-indicator").innerHTML = `Level ${current_lvl}/${MAX_LEVEL}: ${LEVEL_NAMES[current_lvl]}`;
+    }
+
+    function update_progress_bar() {
+      if (game_active === false) {
+        return;
+      }
+      let percentage = allowed_time / timer_upper_limit * 100
+      document.getElementById("progress-bar").style.width = `${percentage}%`;
+    }
+
+    function render_game(game) {
+      let maindiv = document.getElementById("main");
+      maindiv.opacity = 1;
+      while (maindiv.firstChild) { // clear maindiv first before generating
+          maindiv.removeChild(maindiv.firstChild);
+      }
+      for (i = 0; i < DIM[0] + 2; i++) {
+        for (i2 = 0; i2 < DIM[1] + 2; i2++) {
+          var elem = document.createElement("img");
+          if (game[i][i2] === -1) {
+            elem.setAttribute("class", "tile");
+            elem.setAttribute("tile_row", i);
+            elem.setAttribute("tile_col", i2);
+            elem.classList.add("transparent")
+            elem.src = folder + "transparent.svg";
+          } else {
+            elem.setAttribute("class", "tile");
+            elem.setAttribute("tile_row", i);
+            elem.setAttribute("tile_col", i2);
+            elem.setAttribute("onclick", "select_tile(this)")
+            elem.src = folder + "item (" + (game[i][i2]+1) + ").svg";
+          }
+          maindiv.appendChild(elem);
+        }
+        // var linebreak = document.createElement("br")
+        // maindiv.appendChild(br)
+      }
+    }
+    function select_tile(elem) {
+      if (game_active === false) {
+        return;
+      }
+      let i = parseInt(elem.getAttribute("tile_row"));
+      let i2 = parseInt(elem.getAttribute("tile_col"));
+      if (selected == -1) {
+        elem.classList.add("selected");
+        selected = [i, i2];
+        return;
+      }
+      if (selected[0] == i && selected[1] == i2) { // they are the same tile
+        elem.classList.remove("selected");
+        selected = -1
+        return;
+      }
+      if (game[selected[0]][selected[1]] === game[i][i2]) {  // if same animal
+        // see if there is shortest path
+        let result = shortest_path(game, selected, [i, i2]);
+        if (result == -1) { // no valid path, deselect both
+          elem.classList.remove("selected");
+          deselect_tile(selected[0], selected[1]);
+          selected = -1;
+        } else {
+          destroy_animal(game, selected);
+          destroy_animal(game, [i, i2]);
+          
+          selected = -1;
+          // highlight_path(result);
+          if (current_lvl == 1) {
+            render_game(game);
+            highlight_path(result)
+          } else {
+            LEVEL_FNS[current_lvl]();
+            render_game(game);
+          }
+
+          if (allowed_time <= timer_upper_limit - success_added_time) {
+            allowed_time += success_added_time;
+          } else {
+            allowed_time = timer_upper_limit;
+          }
+          update_progress_bar();
+          if (is_empty(game) === true) {
+            if (current_lvl === MAX_LEVEL) {
+              document.getElementById("ultimate-success-message").style.display = "block";
+            } else {
+              document.getElementById("success-message").style.display = "block";
+            }
+            clearInterval(timer);
+            game_active = false;
+            return;
+          }
+
+          // check valid move
+          vmove = find_valid_move(game)
+          if (vmove === null) {
+            console.log("no valid moves");
+            reshuffle_game();
+          }
+        }
+      } else {
+        deselect_tile(selected[0], selected[1]);
+        selected = [i, i2];
+        elem.classList.add("selected");
+      }
+    }
+
+    function deselect_tile(row, col) {
+      if (game_active === false) {
+        return;
+      }
+      // var tiles = document.getElementsByClassName("tile");
+      var tiles = document.querySelectorAll('.tile');
+      for (var i = 0; i < tiles.length; i++) {
+        if (parseInt(tiles[i].getAttribute("tile_row")) === row && parseInt(tiles[i].getAttribute("tile_col")) === col) {
+          tiles[i].classList.remove("selected");
+          break;
+        }
+      }
+    }
+
+    function find_tile(row, col) {
+      var tiles = document.getElementsByClassName("tile");
+      for (var i = 0; i < tiles.length; i++) {
+        if (parseInt(tiles[i].getAttribute("tile_row")) === row && parseInt(tiles[i].getAttribute("tile_col")) === col) {
+          return tiles[i];
+        }
+      }
+    }
+
+    function highlight_path(path) {
+      var elements = [];
+      for (var i = 0; i < path.length; i++) {
+        elements.push(find_tile(path[i].pos[0], path[i].pos[1]))
+      }
+      for (var i2 = 0; i2 < elements.length; i2++) {
+        elements[i2].src = folder + "dot.svg"
+        // elements[i2].classList.add("path-highlight");
+      }
+      setTimeout(function () {
+        for (i = 0; i <  elements.length; i++) {
+          // elements[i].classList.remove("path-highlight")
+          elements[i].src = folder + "transparent.svg"
+        }
+      }, 500)
+    }
+
+    function show_hint() {
+      if (game_active === false) {
+        return;
+      }
+      let start = vmove[0].pos
+      let end = vmove[vmove.length - 1].pos
+
+      let elements = [find_tile(start[0], start[1]), find_tile(end[0], end[1])]
+      for (var i = 0; i < elements.length; i++) {
+        elements[i].classList.add("hint");
+      }
+
+      setTimeout(function () {
+        for (var i = 0; i <  elements.length; i++) {
+          elements[i].classList.remove("hint")
+        }
+      }, 1000)
+    }
+
+    function reshuffle_game() {
+      if (game_active === false) {
+        return;
+      }
+      reshuffle(game);
+      vmove = find_valid_move(game);
+      if (vmove === null) {
+        reshuffle_game()
+      }
+      render_game(game);
+    }
+
+    function pause_game() {
+      clearInterval(timer);
+      game_active = false;
+      document.getElementById("main").style.opacity = 0.2;
+    }
+
+    function unpause_game() {
+      timer = setInterval(update_timer, 1000);
+      game_active = true;
+      document.getElementById("main").style.opacity = 1;
+    }
+
+  </script>
+</body>
+</html>
