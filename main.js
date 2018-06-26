@@ -3,23 +3,35 @@ const MAX_TURNS = 2;
 var selected = -1;
 
 const MAX_LEVEL = 7;
+
+const LEVEL_ANIMALS = {
+    1: {6: 22, 4: 2, 2: 0},
+    2: {6: 17, 4: 7, 2: 5},
+    3: {6: 12, 4: 12, 2: 10},
+    4: {6: 12, 4: 12, 2: 10},
+    5: {6: 12, 4: 12, 2: 10},
+    6: {6: 12, 4: 12, 2: 10},
+    7: {6: 12, 4: 12, 2: 10},
+}
 const LEVEL_FNS = {
-    2: left_right_split,
+    2: function() {},
     3: up_down_split,
-    4: flush_left,
-    5: flush_right,
-    6: flush_down,
-    7: flush_up,
+    4: left_right_split,
+    5: flush_left,
+    6: flush_right,
+    7: flush_down,
+    8: flush_up,
 }
 
 const LEVEL_NAMES = {
     1: "Beginner",
-    2: "Left right split",
+    2: "Slightly harder",
     3: "Up down split",
-    4: "Flush left",
-    5: "Flush right",
-    6: "Flush up",
-    7: "Flush down",
+    4: "Left right split",
+    5: "Flush left",
+    6: "Flush right",
+    7: "Flush up",
+    8: "Flush down",
 }
 
 function new_row(length, fill) {
@@ -30,23 +42,20 @@ function new_row(length, fill) {
     return row
 }
 
-function generate_game(dim) {
+function generate_game(dim, level) {
     const num_tiles = dim[0] * dim[1];
-    const num_repeats = 6;
-    // const num_animals = num_tiles / num_repeats;
-    const num_animals = 24
-    var bucket = [];
-    for (var i = 0; i < num_animals; i++) {
-        if (i === num_animals - 1) {
-            for (var i2 = 0; i2 < 2; i2++) {
-                bucket.push(i);
-            }
-        } else {
-            for (var i2 = 0; i2 < num_repeats; i2++) {
-                bucket.push(i);
+
+    let bucket = [];
+    count = 0
+    for (var key in LEVEL_ANIMALS[level]) {
+        for (var i = 0; i < LEVEL_ANIMALS[level][key]; i++) {
+            for (var j = 0; j < key; j++) {
+                bucket.push(i+count)
             }
         }
+        count += LEVEL_ANIMALS[level][key];
     }
+
     const game = [];
     game.push(new_row(dim[1] + 2, -1))
     // need to add empty outer layer
