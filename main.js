@@ -2,7 +2,7 @@ const DIM = [10, 14];
 const MAX_TURNS = 2;
 var selected = -1;
 
-const MAX_LEVEL = 7;
+const MAX_LEVEL = 8;
 
 const LEVEL_ANIMALS = {
     1: {6: 22, 4: 2, 2: 0},
@@ -12,15 +12,17 @@ const LEVEL_ANIMALS = {
     5: {6: 12, 4: 12, 2: 10},
     6: {6: 12, 4: 12, 2: 10},
     7: {6: 12, 4: 12, 2: 10},
+    8: {6: 12, 4: 12, 2: 10},
 }
 const LEVEL_FNS = {
-    2: function() {},
+    1: function() { return [] },
+    2: function() { return [] },
     3: up_down_split,
     4: left_right_split,
     5: flush_left,
-    6: flush_right,
-    7: flush_down,
-    8: flush_up,
+    6: flush_down,
+    7: flush_up,
+    8: flush_right,
 }
 
 const LEVEL_NAMES = {
@@ -29,9 +31,9 @@ const LEVEL_NAMES = {
     3: "Up down split",
     4: "Left right split",
     5: "Flush left",
-    6: "Flush right",
+    6: "Flush down",
     7: "Flush up",
-    8: "Flush down",
+    8: "Flush right",
 }
 
 function new_row(length, fill) {
@@ -69,7 +71,6 @@ function generate_game(dim, level) {
         game.push(whole_row);
     }
     game.push(new_row(dim[1] + 2, -1));
-    console.log(game)
     let vmove = find_valid_move(game);
     if (vmove === null) {
         return generate_game(dim)
@@ -223,132 +224,192 @@ function find_valid_move(game) {
 // level configs
 function left_right_split(game) {
     let cols = game[0].length;
+    let changed_tiles = [];
     for (var i = 0; i < game.length; i++) {
         let count_left = 0;
         let count_right = 0;
         for (var j = 0; j < cols/2; j++) {
             if (game[i][j] !== -1) {
+                if (game[i][count_left + 1] !== game[i][j]) {
+                    changed_tiles.push([i, count_left + 1]);
+                }
                 game[i][count_left + 1] = game[i][j];
-                count_left += 1
+                count_left += 1;
             }
         }
         if (count_left < cols/2-1) {
             for (var c = count_left; c < cols/2-1; c++) {
-                game[i][c+1] = -1
+                if (game[i][c+1] !== -1) {
+                    changed_tiles.push([i, c+1]);
+                }
+                game[i][c+1] = -1;
             }
         }
         for (var j = cols - 1; j >= cols/2; j--) {
             if (game[i][j] !== -1) {
+                if (game[i][cols-count_right-2] !== game[i][j]) {
+                    changed_tiles.push([i, cols-count_right-2]);
+                }
                 game[i][cols-count_right-2] = game[i][j];
-                count_right += 1
+                count_right += 1;
             }
         }
         if (count_right < cols/2-1) {
             for (var c2 = count_right; c2 < cols/2-1; c2++) {
-                game[i][cols-c2-2] = -1
+                if (game[i][cols-c2-2] !== -1) {
+                    changed_tiles.push([i, cols-c2-2]);
+                }
+                game[i][cols-c2-2] = -1;
             }
         }
     }
+    return changed_tiles;
 }
 
 function up_down_split(game) {
     let cols = game.length;
+    let changed_tiles = [];
     for (var i = 0; i < game[0].length; i++) {
         let count_left = 0;
         let count_right = 0;
         for (var j = 0; j < cols/2; j++) {
             if (game[j][i] !== -1) {
+                if (game[count_left+1][i] !== game[j][i]) {
+                    changed_tiles.push([count_left+1, i]);
+                }
                 game[count_left + 1][i] = game[j][i];
-                count_left += 1
+                count_left += 1;
             }
         }
         if (count_left < cols/2-1) {
             for (var c = count_left; c < cols/2-1; c++) {
-                game[c+1][i] = -1
+                if (game[c+1][i] !== -1) {
+                    changed_tiles.push([c+1, i]);
+                }
+                game[c+1][i] = -1;
             }
         }
         for (var j = cols - 1; j >= cols/2; j--) {
             if (game[j][i] !== -1) {
+                if (game[cols-count_right-2][i] !== game[j][i]) {
+                    changed_tiles.push([cols-count_right-2, i]);
+                }
                 game[cols-count_right-2][i] = game[j][i];
-                count_right += 1
+                count_right += 1;
             }
         }
         if (count_right < cols/2-1) {
             for (var c2 = count_right; c2 < cols/2-1; c2++) {
-                game[cols-c2-2][i] = -1
+                if (game[cols-c2-2][i] !== -1) {
+                    changed_tiles.push([cols-c2-2, i]);
+                }
+                game[cols-c2-2][i] = -1;
             }
         }
     }
+    return changed_tiles;
 }
 
 function flush_left(game) {
     let cols = game[0].length;
+    let changed_tiles = [];
     for (var i = 0; i < game.length; i++) {
         let count_left = 0;
         for (var j = 0; j < cols; j++) {
             if (game[i][j] !== -1) {
-                game[i][count_left + 1] = game[i][j];
-                count_left += 1
+                if (game[i][count_left+1] !== game[i][j]) {
+                    changed_tiles.push([i, count_left+1]);
+                }
+                game[i][count_left+1] = game[i][j];
+                count_left += 1;
             }
         }
         if (count_left < cols-1) {
             for (var c = count_left; c < cols-1; c++) {
-                game[i][c+1] = -1
+                if (game[i][c+1] !== -1) {
+                    changed_tiles.push([i, c+1]);
+                }
+                game[i][c+1] = -1;
             }
         }
     }
+    return changed_tiles;
 }
 
 function flush_up(game) {
     let cols = game.length;
+    let changed_tiles = [];
     for (var i = 0; i < game[0].length; i++) {
         let count_left = 0;
         for (var j = 0; j < cols; j++) {
             if (game[j][i] !== -1) {
-                game[count_left + 1][i] = game[j][i];
-                count_left += 1
+                if (game[count_left+1][i] !== game[j][i]) {
+                    changed_tiles.push([count_left+1, i]);
+                }
+                game[count_left+1][i] = game[j][i];
+                count_left += 1;
             }
         }
         if (count_left < cols-1) {
             for (var c = count_left; c < cols-1; c++) {
-                game[c+1][i] = -1
+                if (game[c+1][i] !== -1) {
+                    changed_tiles.push([c+1, i])
+                }
+                game[c+1][i] = -1;
             }
         }
     }
+    return changed_tiles;
 }
 
 function flush_right(game) {
     let cols = game[0].length;
+    let changed_tiles = [];
     for (var i = 0; i < game.length; i++) {
         let count_right = 0;
         for (var j = cols - 1; j >= 1; j--) {
             if (game[i][j] !== -1) {
+                if (game[i][cols-count_right-2] !== game[i][j]) {
+                    changed_tiles.push([i, cols-count_right-2]);
+                }
                 game[i][cols-count_right-2] = game[i][j];
-                count_right += 1
+                count_right += 1;
             }
         }
         if (count_right < cols-1) {
             for (var c2 = count_right; c2 < cols-1; c2++) {
+                if (game[i][cols-c2-2] !== -1) {
+                    changed_tiles.push([i, cols-c2-2]);
+                }
                 game[i][cols-c2-2] = -1
             }
         }
     }
+    return changed_tiles;
 }
 
 function flush_down(game) {
     let cols = game.length;
+    let changed_tiles = [];
     for (var i = 0; i < game[0].length; i++) {
         let count_right = 0;
         for (var j = cols - 1; j >= 1; j--) {
             if (game[j][i] !== -1) {
+                if (game[cols-count_right-2][i] !== game[j][i]) {
+                    changed_tiles.push([cols-count_right-2, i]);
+                }
                 game[cols-count_right-2][i] = game[j][i];
-                count_right += 1
+                count_right += 1;
             }
         }
         if (count_right < cols-1) {
             for (var c2 = count_right; c2 < cols-1; c2++) {
-                game[cols-c2-2][i] = -1
+                if (game[cols-c2-2][i] !== -1) {
+                    changed_tiles.push([cols-c2-2, i]);
+                }
+                game[cols-c2-2][i] = -1;
             }
         }
     }
+    return changed_tiles;
 }
