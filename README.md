@@ -7,3 +7,4 @@ Icons made by [Freepik](https://www.flaticon.com/authors/freepik) from www.flati
 TODO:
 
 - hint (life) limits
+- improve endgame bfs speed
