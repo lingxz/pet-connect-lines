@@ -112,7 +112,7 @@ function Gameboard() {
         const num_tiles = dim[0] * dim[1];
 
         let bucket = [];
-        count = 0
+        let count = 0
         for (var key in LEVEL_ANIMALS[level]) {
             for (var i = 0; i < LEVEL_ANIMALS[level][key]; i++) {
                 for (var j = 0; j < key; j++) {
@@ -157,12 +157,17 @@ function Gameboard() {
     }
 
     this.reshuffle = function() {
+        this.animals2positions = {}; // reset
+        let animals2positions = this.animals2positions;
         let game = this.game;
         let bucket = [];
         for (var i = 0; i < game.length; i++) {
             for (var j = 0; j < game[i].length; j++) {
                 if (game[i][j] !== -1) {
                     bucket.push(game[i][j])
+                    if (!(game[i][j] in animals2positions)) {
+                        animals2positions[game[i][j]] = [];
+                    }
                 }
             }
         }
@@ -171,6 +176,7 @@ function Gameboard() {
                 if (game[i][j] !== -1) {
                     let random_index = Math.floor(Math.random() * bucket.length);
                     game[i][j] = bucket.splice(random_index, 1)[0];
+                    animals2positions[game[i][j]].push([i, j]);
                 }
             }
         }
