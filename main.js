@@ -35,6 +35,94 @@ const LEVEL_NAMES = {
     8: "Flush right",
 }
 
+// ================ tinyqueue ==============================
+
+function TinyQueue(data, compare) {
+    if (!(this instanceof TinyQueue)) return new TinyQueue(data, compare);
+
+    this.data = data || [];
+    this.length = this.data.length;
+    this.compare = compare || defaultCompare;
+
+    if (this.length > 0) {
+        for (var i = (this.length >> 1) - 1; i >= 0; i--) this._down(i);
+    }
+}
+
+function defaultCompare(a, b) {
+    return a < b ? -1 : a > b ? 1 : 0;
+}
+
+TinyQueue.prototype = {
+
+    push: function (item) {
+        this.data.push(item);
+        this.length++;
+        this._up(this.length - 1);
+    },
+
+    pop: function () {
+        if (this.length === 0) return undefined;
+
+        var top = this.data[0];
+        this.length--;
+
+        if (this.length > 0) {
+            this.data[0] = this.data[this.length];
+            this._down(0);
+        }
+        this.data.pop();
+
+        return top;
+    },
+
+    peek: function () {
+        return this.data[0];
+    },
+
+    _up: function (pos) {
+        var data = this.data;
+        var compare = this.compare;
+        var item = data[pos];
+
+        while (pos > 0) {
+            var parent = (pos - 1) >> 1;
+            var current = data[parent];
+            if (compare(item, current) >= 0) break;
+            data[pos] = current;
+            pos = parent;
+        }
+
+        data[pos] = item;
+    },
+
+    _down: function (pos) {
+        var data = this.data;
+        var compare = this.compare;
+        var halfLength = this.length >> 1;
+        var item = data[pos];
+
+        while (pos < halfLength) {
+            var left = (pos << 1) + 1;
+            var right = left + 1;
+            var best = data[left];
+
+            if (right < this.length && compare(data[right], best) < 0) {
+                left = right;
+                best = data[right];
+            }
+            if (compare(best, item) >= 0) break;
+
+            data[pos] = best;
+            pos = left;
+        }
+
+        data[pos] = item;
+    }
+};
+
+// ================ tinyqueue ==============================
+
 function in_array_dict(anarray, item) {
     let item_index = anarray.findIndex(function(element) {
         if (!arraysEqual(item.pos, element.pos)) {
@@ -92,13 +180,18 @@ function arraysEqual(arr1, arr2) {
     return true;
 }
 
-var findIndexCustom = function(arr, item) {
+var findIndexCustom = function (arr, item) {
     for (var i = 0; i < arr.length; i++) {
         if (arraysEqual(arr[i], item)) { return i; }
     }
     return -1
 };
 
+var path_heuristic = function (pt, dest) {
+    const euclid_dist = Math.sqrt(Math.pow(pt.pos[0] - dest[0], 2) + Math.pow(pt.pos[1] - dest[1], 2));
+    return euclid_dist + pt.pos.turns
+}
+// {pos: right, turns: calc_new_turns(current.dir, "right", current.turns), dir: "right"}
 
 function Gameboard() {
     this.game = null;
@@ -184,13 +277,18 @@ function Gameboard() {
 
     this.shortest_path = function (point1, point2) { // path with shortest number of turns
         let game = this.game;
-        let queue = [];
+        let queue = new TinyQueue([], function(a, b) {
+            return path_heuristic(a[a.length-1], point2) - path_heuristic(b[b.length-1], point2)
+        });
+        // let queue = [];
         let parent = {};
         const start = {pos: point1, turns: 0, dir: -1};
-        queue.push([start]);
+        queue.push([start], path_heuristic(start, point2));
+        // queue.push([start]);
         let visited = [];
         while (queue.length !== 0) {
-            let current_path = queue.shift();
+            // let current_path = queue.shift();
+            let current_path = queue.pop();
             let current = current_path[current_path.length - 1];
             if (current.turns > MAX_TURNS) {
                 continue;
@@ -212,22 +310,22 @@ function Gameboard() {
             if (game[up[0]] !== undefined && game[up[0]][up[1]] !== undefined && (game[up[0]][up[1]] === -1 | arraysEqual(up, point2)) && !in_array_dict(visited, up_pt)) { 
                 let new_path = current_path.slice();
                 new_path.push(up_pt);
-                queue.push(new_path);
+                queue.push(new_path, path_heuristic(up_pt, point2));
             }
             if (game[down[0]] !== undefined && game[down[0]][down[1]] !== undefined && (game[down[0]][down[1]] === -1 | arraysEqual(down, point2)) && !in_array_dict(visited, down_pt)) { 
                 let new_path = current_path.slice();
                 new_path.push(down_pt);
-                queue.push(new_path);
+                queue.push(new_path, path_heuristic(down_pt, point2));
             }
             if (game[left[0]] !== undefined && game[left[0]][left[1]] !== undefined && (game[left[0]][left[1]] === -1 | arraysEqual(left, point2)) && !in_array_dict(visited, left_pt)) { 
                 let new_path = current_path.slice();
                 new_path.push(left_pt);
-                queue.push(new_path);
+                queue.push(new_path, path_heuristic(left_pt, point2));
             }
             if (game[right[0]] !== undefined && game[right[0]][right[1]] !== undefined && (game[right[0]][right[1]] === -1 | arraysEqual(right, point2)) && !in_array_dict(visited, right_pt)) { 
                 let new_path = current_path.slice();
                 new_path.push(right_pt);
-                queue.push(new_path);
+                queue.push(new_path, path_heuristic(right_pt, point2));
             }
         }
         return -1;
